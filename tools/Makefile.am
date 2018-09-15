@@ -1,7 +1,7 @@
 SUBDIRS = gnulib lou_maketable.d
 
 AM_CPPFLAGS =					\
-	-Wall -Wextra -Wno-override-init	\
+	$(WARN_CFLAGS)				\
 	-I$(top_srcdir)/liblouis		\
 	-I$(top_srcdir)/tools/gnulib		\
 	-I$(top_builddir)/tools/gnulib
@@ -14,7 +14,7 @@ lou_compare_CPPFLAGS = $(AM_CPPFLAGS) -w
 LDADD =							\
 	$(top_builddir)/liblouis/liblouis.la		\
 	$(top_builddir)/tools/gnulib/libgnutools.la	\
-	$(top_builddir)/tools/libbrlcheck.la		\
+	libbrlcheck.la		\
 	$(LTLIBINTL)
 
 # libbrlcheck is a convenience library that contains functionality to
