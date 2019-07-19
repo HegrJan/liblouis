@@ -108,18 +108,32 @@ lou_getProgramPath(void) {
 #endif
 /* End of MS contribution */
 
-int EXPORT_CALL
-_lou_stringHash(const widechar *c) {
-	/* hash function for strings */
-	unsigned long int makeHash =
-			(((unsigned long int)c[0] << 8) + (unsigned long int)c[1]) % HASHNUM;
-	return (int)makeHash;
+static widechar
+toLowercase(widechar c, const TranslationTableHeader *table) {
+	static TranslationTableOffset offset;
+	static TranslationTableCharacter *character;
+	offset = table->characters[_lou_charHash(c)];
+	while (offset) {
+		character = (TranslationTableCharacter *)&table->ruleArea[offset];
+		if (character->realchar == c) return character->lowercase;
+		offset = character->next;
+	}
+	return c;
 }
 
-int EXPORT_CALL
+unsigned long int EXPORT_CALL
+_lou_stringHash(const widechar *c, int lowercase, const TranslationTableHeader *table) {
+	if (!lowercase)
+		return (((unsigned long int)c[0] << 8) + (unsigned long int)c[1]) % HASHNUM;
+	else
+		return (((unsigned long int)toLowercase(c[0], table) << 8) +
+					   (unsigned long int)toLowercase(c[1], table)) %
+				HASHNUM;
+}
+
+unsigned long int EXPORT_CALL
 _lou_charHash(widechar c) {
-	unsigned long int makeHash = (unsigned long int)c % HASHNUM;
-	return (int)makeHash;
+	return (unsigned long int)c % HASHNUM;
 }
 
 char *EXPORT_CALL
@@ -190,7 +204,7 @@ _lou_showDots(widechar const *dots, int length) {
 					(bufPos < (MAXSTRING - 1)))
 				scratchBuf[bufPos++] = dotMapping[mappingPos].value;
 		}
-		if ((dots[dotsPos] == B16) && (bufPos < (MAXSTRING - 1)))
+		if ((dots[dotsPos] == LOU_DOTS) && (bufPos < (MAXSTRING - 1)))
 			scratchBuf[bufPos++] = '0';
 		if ((dotsPos != length - 1) && (bufPos < (MAXSTRING - 1)))
 			scratchBuf[bufPos++] = '-';
@@ -203,10 +217,20 @@ _lou_showDots(widechar const *dots, int length) {
  * Mapping between character attribute and textual representation
  */
 static const intCharTupple attributeMapping[] = {
-	{ CTC_Space, 's' }, { CTC_Letter, 'l' }, { CTC_Digit, 'd' }, { CTC_Punctuation, 'p' },
-	{ CTC_UpperCase, 'U' }, { CTC_LowerCase, 'u' }, { CTC_Math, 'm' }, { CTC_Sign, 'S' },
-	{ CTC_LitDigit, 'D' }, { CTC_Class1, 'w' }, { CTC_Class2, 'x' }, { CTC_Class3, 'y' },
-	{ CTC_Class4, 'z' }, { 0, 0 },
+	{ CTC_Space, 's' },
+	{ CTC_Letter, 'l' },
+	{ CTC_Digit, 'd' },
+	{ CTC_Punctuation, 'p' },
+	{ CTC_UpperCase, 'U' },
+	{ CTC_LowerCase, 'u' },
+	{ CTC_Math, 'm' },
+	{ CTC_Sign, 'S' },
+	{ CTC_LitDigit, 'D' },
+	{ CTC_Class1, 'w' },
+	{ CTC_Class2, 'x' },
+	{ CTC_Class3, 'y' },
+	{ CTC_Class4, 'z' },
+	{ 0, 0 },
 };
 
 /**

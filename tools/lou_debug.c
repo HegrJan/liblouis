@@ -32,7 +32,8 @@
 #include "version-etc.h"
 
 static const struct option longopts[] = {
-	{ "help", no_argument, NULL, 'h' }, { "version", no_argument, NULL, 'v' },
+	{ "help", no_argument, NULL, 'h' },
+	{ "version", no_argument, NULL, 'v' },
 	{ NULL, 0, NULL, 0 },
 };
 
@@ -122,11 +123,13 @@ printRule(TranslationTableRule *thisRule, int mode) {
 	default:
 		if (mode == 0) {
 			printf("chars=%s, ", print_chars(thisRule->charsdots, thisRule->charslen));
-			printf("dots=%s, ", _lou_showDots(&thisRule->charsdots[thisRule->charslen],
-										thisRule->dotslen));
+			printf("dots=%s, ",
+					_lou_showDots(
+							&thisRule->charsdots[thisRule->charslen], thisRule->dotslen));
 		} else {
-			printf("dots=%s, ", _lou_showDots(&thisRule->charsdots[thisRule->charslen],
-										thisRule->dotslen));
+			printf("dots=%s, ",
+					_lou_showDots(
+							&thisRule->charsdots[thisRule->charslen], thisRule->dotslen));
 			printf("chars=%s, ", print_chars(thisRule->charsdots, thisRule->charslen));
 		}
 		break;
@@ -501,7 +504,7 @@ particular(void) {
 			printf("-> ");
 			getInput();
 			if (!_lou_extParseChars(inputBuffer, parsed)) break;
-			startHash = _lou_stringHash(parsed);
+			startHash = _lou_stringHash(parsed, 0, NULL);
 			if (table->forRules[startHash] == 0) {
 				printf("Character string not in table.\n");
 				break;
@@ -512,7 +515,7 @@ particular(void) {
 			printf("-> ");
 			getInput();
 			if (!_lou_extParseDots(inputBuffer, parsed)) break;
-			startHash = _lou_stringHash(parsed);
+			startHash = _lou_stringHash(parsed, 0, NULL);
 			if (table->backRules[startHash] == 0) {
 				printf("Dot pattern not in table.\n");
 				break;
