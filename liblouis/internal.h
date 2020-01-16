@@ -63,28 +63,6 @@ typedef struct intCharTupple {
 	char value;
 } intCharTupple;
 
-/**
- * Mapping between braille dot and textual representation as used in dots operands
- */
-static const intCharTupple dotMapping[] = {
-	{ LOU_DOT_1, '1' },
-	{ LOU_DOT_2, '2' },
-	{ LOU_DOT_3, '3' },
-	{ LOU_DOT_4, '4' },
-	{ LOU_DOT_5, '5' },
-	{ LOU_DOT_6, '6' },
-	{ LOU_DOT_7, '7' },
-	{ LOU_DOT_8, '8' },
-	{ LOU_DOT_9, '9' },
-	{ LOU_DOT_10, 'A' },
-	{ LOU_DOT_11, 'B' },
-	{ LOU_DOT_12, 'C' },
-	{ LOU_DOT_13, 'D' },
-	{ LOU_DOT_14, 'E' },
-	{ LOU_DOT_15, 'F' },
-	{ 0, 0 },
-};
-
 /* HASHNUM must be prime */
 #define HASHNUM 1123
 
@@ -487,6 +465,28 @@ typedef struct /* one state */
 	widechar numTrans;
 } HyphenationState;
 
+typedef struct CharacterClass {
+	struct CharacterClass *next;
+	TranslationTableCharacterAttributes attribute;
+	widechar length;
+	widechar name[1];
+} CharacterClass;
+
+typedef struct RuleName {
+	struct RuleName *next;
+	TranslationTableOffset ruleOffset;
+	widechar length;
+	widechar name[1];
+} RuleName;
+
+typedef struct {
+	TranslationTableOffset tableSize;
+	TranslationTableOffset bytesUsed;
+	TranslationTableOffset charToDots[HASHNUM];
+	TranslationTableOffset dotsToChar[HASHNUM];
+	TranslationTableOffset ruleArea[1]; /** Space for storing all rules and values */
+} DisplayTableHeader;
+
 /**
  * Translation table header
  */
@@ -513,6 +513,11 @@ typedef struct { /* translation table */
 	/* emphRules, including caps. */
 	TranslationTableOffset emphRules[MAX_EMPH_CLASSES + 1][9];
 
+	/* state needed during compilation */
+	CharacterClass *characterClasses;
+	TranslationTableCharacterAttributes nextCharacterClassAttribute;
+	RuleName *ruleNames;
+
 	TranslationTableOffset begComp;
 	TranslationTableOffset compBegEmph1;
 	TranslationTableOffset compEndEmph1;
@@ -533,8 +538,6 @@ typedef struct { /* translation table */
 	int noLetsignAfterCount;
 	TranslationTableOffset characters[HASHNUM]; /** Character definitions */
 	TranslationTableOffset dots[HASHNUM];		/** Dot definitions */
-	TranslationTableOffset charToDots[HASHNUM];
-	TranslationTableOffset dotsToChar[HASHNUM];
 	TranslationTableOffset compdotsPattern[256];
 	TranslationTableOffset swapDefinitions[NUMSWAPS];
 	TranslationTableOffset forPassRules[MAXPASS + 1];
@@ -638,14 +641,31 @@ _lou_defaultTableResolver(const char *tableList, const char *base);
  * TODO: move to commonTranslationFunctions.c
  */
 widechar EXPORT_CALL
-_lou_getDotsForChar(widechar c);
+_lou_getDotsForChar(widechar c, const DisplayTableHeader *table);
 
 /**
  * Return character corresponding to a single-cell dot pattern.
  * TODO: move to commonTranslationFunctions.c
  */
 widechar EXPORT_CALL
-_lou_getCharFromDots(widechar d);
+_lou_getCharFromDots(widechar d, const DisplayTableHeader *table);
+
+void EXPORT_CALL
+_lou_getTable(const char *tableList, const char *displayTableList,
+		const TranslationTableHeader **translationTable,
+		const DisplayTableHeader **displayTable);
+
+const TranslationTableHeader *EXPORT_CALL
+_lou_getTranslationTable(const char *tableList);
+
+const DisplayTableHeader *EXPORT_CALL
+_lou_getDisplayTable(const char *tableList);
+
+int EXPORT_CALL
+_lou_compileTranslationRule(const char *tableList, const char *inString);
+
+int EXPORT_CALL
+_lou_compileDisplayRule(const char *tableList, const char *inString);
 
 /**
  * Allocate memory for internal buffers
@@ -675,13 +695,22 @@ _lou_charHash(widechar c);
 /**
  * Return a string in the same format as the characters operand in opcodes
  */
-char *EXPORT_CALL
-_lou_showString(widechar const *chars, int length);
+const char *EXPORT_CALL
+_lou_showString(widechar const *chars, int length, int forceHex);
+
+/**
+ * Print out dot numbers
+ *
+ * @return a string containing the dot numbers. The longest possible
+ * output is "\123456789ABCDEF0/"
+ */
+const char *EXPORT_CALL
+_lou_unknownDots(widechar dots);
 
 /**
  * Return a character string in the format of the dots operand
  */
-char *EXPORT_CALL
+const char *EXPORT_CALL
 _lou_showDots(widechar const *dots, int length);
 
 /**
@@ -733,16 +762,16 @@ int EXPORT_CALL
 _lou_extParseDots(const char *inString, widechar *outString);
 
 int EXPORT_CALL
-_lou_translateWithTracing(const char *tableList, const widechar *inbuf, int *inlen,
-		widechar *outbuf, int *outlen, formtype *typeform, char *spacing, int *outputPos,
-		int *inputPos, int *cursorPos, int mode, const TranslationTableRule **rules,
-		int *rulesLen);
+_lou_translate(const char *tableList, const char *displayTableList, const widechar *inbuf,
+		int *inlen, widechar *outbuf, int *outlen, formtype *typeform, char *spacing,
+		int *outputPos, int *inputPos, int *cursorPos, int mode,
+		const TranslationTableRule **rules, int *rulesLen);
 
 int EXPORT_CALL
-_lou_backTranslateWithTracing(const char *tableList, const widechar *inbuf, int *inlen,
-		widechar *outbuf, int *outlen, formtype *typeform, char *spacing, int *outputPos,
-		int *inputPos, int *cursorPos, int mode, const TranslationTableRule **rules,
-		int *rulesLen);
+_lou_backTranslate(const char *tableList, const char *displayTableList,
+		const widechar *inbuf, int *inlen, widechar *outbuf, int *outlen,
+		formtype *typeform, char *spacing, int *outputPos, int *inputPos, int *cursorPos,
+		int mode, const TranslationTableRule **rules, int *rulesLen);
 
 void EXPORT_CALL
 _lou_resetPassVariables(void);
@@ -798,6 +827,17 @@ extern int translation_direction;
  */
 int EXPORT_CALL
 _lou_isValidMode(int mode);
+
+/**
+ * Return the default braille representation for a character.
+ */
+widechar EXPORT_CALL
+_lou_charToFallbackDots(widechar c);
+
+static inline int
+isASCII(widechar c) {
+	return (c >= 0X20) && (c < 0X7F);
+}
 
 #ifdef __cplusplus
 }
